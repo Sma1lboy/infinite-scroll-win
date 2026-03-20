@@ -4,16 +4,9 @@ enum TmuxManager {
     /// Tmux session name prefix for Infinite Scroll
     static let prefix = "is-"
 
-    /// Find tmux binary — prefer the bundled copy inside the .app
+    /// Find tmux binary — prefer system, fall back to bundled
     static func findTmux() -> String? {
-        // 1. Bundled tmux inside the app
-        if let bundlePath = Bundle.main.executableURL?
-            .deletingLastPathComponent()
-            .appendingPathComponent("tmux").path,
-           FileManager.default.isExecutableFile(atPath: bundlePath) {
-            return bundlePath
-        }
-        // 2. System tmux
+        // 1. System tmux
         let candidates = [
             "/opt/homebrew/bin/tmux",
             "/usr/local/bin/tmux",
@@ -23,6 +16,13 @@ enum TmuxManager {
             if FileManager.default.isExecutableFile(atPath: path) {
                 return path
             }
+        }
+        // 2. Bundled tmux inside the .app
+        if let bundlePath = Bundle.main.executableURL?
+            .deletingLastPathComponent()
+            .appendingPathComponent("tmux").path,
+           FileManager.default.isExecutableFile(atPath: bundlePath) {
+            return bundlePath
         }
         return nil
     }
