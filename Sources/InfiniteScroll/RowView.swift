@@ -21,6 +21,18 @@ struct RowView: View {
 
                 Spacer()
 
+                Button(action: { panel.toggleNotes() }) {
+                    Image(systemName: "doc.text")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(panel.showNotes ? Theme.focusBorder : Theme.textSecondary)
+                        .frame(width: 20, height: 20)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .onHover { hovering in
+                    if hovering { NSCursor.arrow.push() } else { NSCursor.pop() }
+                }
+
                 Button(action: onClose) {
                     Image(systemName: "xmark")
                         .font(.system(size: 10, weight: .bold))

@@ -5,6 +5,7 @@ class PanelStore: ObservableObject {
     @Published var panels: [PanelModel] = []
     @Published var fontSize: CGFloat = 16
     @Published var focusedCellID: UUID?
+    @Published var showHelp: Bool = false
     private var nextIndex = 1
     private var autosaveCancellables: Set<AnyCancellable> = []
     private var terminationObserver: Any?
@@ -152,15 +153,25 @@ class PanelStore: ObservableObject {
         guard focusedCell < panel.cells.count else { return }
 
         let current = panel.cells[focusedCell]
-        let newCell: CellModel
-        switch current.type {
-        case .terminal:
-            newCell = CellModel(type: .terminal, cwd: current.cwd)
-        case .notes:
-            newCell = CellModel(type: .notes)
+        // Always duplicate as a terminal cell (notes is toggled separately)
+        let sourceCwd: String
+        if current.type == .terminal {
+            let sessionName = TmuxManager.sessionName(for: current.id)
+            sourceCwd = TmuxManager.paneCwd(session: sessionName) ?? current.cwd
+        } else {
+            // Cmd+D on notes: use cwd of the last terminal in this row
+            sourceCwd = panel.cells.last(where: { $0.type == .terminal })?.cwd ?? NSHomeDirectory()
         }
-        panel.cells.insert(newCell, at: focusedCell + 1)
-        focusedCell += 1
+        let newCell = CellModel(type: .terminal, cwd: sourceCwd)
+        // Insert before the notes cell (if present) to keep notes rightmost
+        let insertIdx: Int
+        if let notesIdx = panel.cells.firstIndex(where: { $0.type == .notes }) {
+            insertIdx = notesIdx
+        } else {
+            insertIdx = focusedCell + 1
+        }
+        panel.cells.insert(newCell, at: insertIdx)
+        focusedCell = insertIdx
         objectWillChange.send()
         scheduleFocus()
     }

@@ -34,6 +34,12 @@ struct InfiniteScrollApp: App {
                 }
                 .keyboardShortcut(.downArrow, modifiers: [.command, .shift])
             }
+            CommandGroup(replacing: .help) {
+                Button("Keyboard Shortcuts") {
+                    store.showHelp.toggle()
+                }
+                .keyboardShortcut("/", modifiers: .command)
+            }
             CommandGroup(after: .toolbar) {
                 Button("Zoom In") {
                     store.zoomIn()

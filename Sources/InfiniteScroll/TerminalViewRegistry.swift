@@ -4,20 +4,33 @@ import SwiftTerm
 class TerminalViewRegistry {
     static let shared = TerminalViewRegistry()
     private var views: [UUID: LocalProcessTerminalView] = [:]
+    private var tmuxSessions: [UUID: String] = [:]
     private let lock = NSLock()
 
     private init() {}
 
-    func register(id: UUID, view: LocalProcessTerminalView) {
+    func register(id: UUID, view: LocalProcessTerminalView, tmuxSession: String? = nil) {
         lock.lock()
         views[id] = view
+        if let session = tmuxSession {
+            tmuxSessions[id] = session
+        }
         lock.unlock()
     }
 
     func unregister(id: UUID) {
         lock.lock()
         views.removeValue(forKey: id)
+        tmuxSessions.removeValue(forKey: id)
         lock.unlock()
+    }
+
+    /// Look up the tmux session name for a terminal view (nil if not tmux-backed).
+    func tmuxSession(for view: LocalProcessTerminalView) -> String? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let id = views.first(where: { $0.value === view })?.key else { return nil }
+        return tmuxSessions[id]
     }
 
     func view(for id: UUID) -> LocalProcessTerminalView? {

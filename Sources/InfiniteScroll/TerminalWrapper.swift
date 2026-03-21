@@ -16,14 +16,67 @@ enum ShiftEnterMonitor {
                   !event.modifierFlags.contains(.control) else {
                 return event
             }
-            guard let firstResponder = event.window?.firstResponder,
-                  firstResponder is LocalProcessTerminalView,
-                  let termView = firstResponder as? LocalProcessTerminalView else {
+            // Walk up the responder/view chain to find a LocalProcessTerminalView
+            guard let firstResponder = event.window?.firstResponder as? NSView else {
                 return event
             }
-            let sequence: [UInt8] = [0x1b, 0x5b, 0x31, 0x33, 0x3b, 0x32, 0x75]
-            termView.send(data: ArraySlice(sequence))
-            return nil
+            var current: NSView? = firstResponder
+            while let view = current {
+                if let termView = view as? LocalProcessTerminalView {
+                    // CSI-u sequence for Shift+Enter: ESC[13;2u
+                    let sequence: [UInt8] = [0x1b, 0x5b, 0x31, 0x33, 0x3b, 0x32, 0x75]
+
+                    if let session = TerminalViewRegistry.shared.tmuxSession(for: termView) {
+                        // tmux-backed: use send-keys to bypass tmux's input parsing
+                        DispatchQueue.global(qos: .userInteractive).async {
+                            TmuxManager.sendKeys(session, keys: ["Escape", "[13;2u"])
+                        }
+                    } else {
+                        termView.send(data: ArraySlice(sequence))
+                    }
+                    return nil
+                }
+                current = view.superview
+            }
+            return event
+        }
+    }
+}
+
+// MARK: - Cmd+Backspace → Ctrl+U (kill to beginning of line)
+
+enum CmdBackspaceMonitor {
+    private static var monitor: Any?
+
+    static func install() {
+        guard monitor == nil else { return }
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard event.keyCode == 51,                       // Backspace
+                  event.modifierFlags.contains(.command),
+                  !event.modifierFlags.contains(.shift),
+                  !event.modifierFlags.contains(.control) else {
+                return event
+            }
+            guard let firstResponder = event.window?.firstResponder as? NSView else {
+                return event
+            }
+            var current: NSView? = firstResponder
+            while let view = current {
+                if let termView = view as? LocalProcessTerminalView {
+                    let ctrlU: [UInt8] = [0x15]
+
+                    if let session = TerminalViewRegistry.shared.tmuxSession(for: termView) {
+                        DispatchQueue.global(qos: .userInteractive).async {
+                            TmuxManager.sendKeys(session, keys: ["C-u"])
+                        }
+                    } else {
+                        termView.send(data: ArraySlice(ctrlU))
+                    }
+                    return nil
+                }
+                current = view.superview
+            }
+            return event
         }
     }
 }
@@ -39,6 +92,9 @@ struct TerminalWrapper: NSViewRepresentable {
 
     func makeNSView(context: Context) -> LocalProcessTerminalView {
         let termView = LocalProcessTerminalView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
+        // Disable SwiftTerm's mouse reporting so click+drag does text selection.
+        // Scroll events are forwarded to tmux separately via CmdScrollView.
+        termView.allowMouseReporting = false
 
         let bgColor = NSColor(red: 0.1, green: 0.1, blue: 0.12, alpha: 1.0)
         let fgColor = NSColor(red: 0.85, green: 0.85, blue: 0.88, alpha: 1.0)
@@ -48,8 +104,6 @@ struct TerminalWrapper: NSViewRepresentable {
         if let font = NSFont(name: "Menlo", size: fontSize) ?? NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular) as NSFont? {
             termView.font = font
         }
-
-        TerminalViewRegistry.shared.register(id: terminalID, view: termView)
 
         context.coordinator.termView = termView
         termView.processDelegate = context.coordinator
@@ -76,6 +130,9 @@ struct TerminalWrapper: NSViewRepresentable {
                 environment: envPairs,
                 execName: "tmux"
             )
+            // Configure tmux for mouse scrolling and extended key passthrough
+            TmuxManager.configureGlobals()
+            TerminalViewRegistry.shared.register(id: terminalID, view: termView, tmuxSession: sessionName)
             // Force tmux to redraw after reattach — fixes display corruption
             if sessionExists {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -92,10 +149,12 @@ struct TerminalWrapper: NSViewRepresentable {
                 execName: "zsh",
                 currentDirectory: initialDirectory
             )
+            TerminalViewRegistry.shared.register(id: terminalID, view: termView)
         }
 
         context.coordinator.startCwdPolling()
         ShiftEnterMonitor.install()
+        CmdBackspaceMonitor.install()
 
         return termView
     }
@@ -175,9 +234,21 @@ struct TerminalWrapper: NSViewRepresentable {
             let pid = termView.process.shellPid
             guard pid > 0 else { return }
 
+            let termID = terminalID
+            let usingTmux = isTmux
+
             DispatchQueue.global(qos: .utility).async { [weak self] in
-                // For tmux, we need the child shell's PID, not tmux's
-                // Get the foreground process group of the tmux client
+                if usingTmux {
+                    // Use tmux to get the pane's actual working directory
+                    let sessionName = TmuxManager.sessionName(for: termID)
+                    if let cwd = TmuxManager.paneCwd(session: sessionName) {
+                        DispatchQueue.main.async {
+                            self?.updateCwd(cwd)
+                        }
+                    }
+                    return
+                }
+
                 let task = Process()
                 let pipe = Pipe()
                 task.executableURL = URL(fileURLWithPath: "/usr/sbin/lsof")

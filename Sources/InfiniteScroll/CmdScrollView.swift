@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import SwiftTerm
 
 // MARK: - CmdNSScrollView: intercepts Cmd+scroll for window scrolling
 
@@ -11,21 +12,66 @@ class CmdNSScrollView: NSScrollView {
         if window != nil && eventMonitor == nil {
             eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
                 guard let self = self,
-                      event.modifierFlags.contains(.command),
                       let window = self.window,
                       window == event.window else {
                     return event
                 }
-                // Perform the scroll on this NSScrollView
-                let clipView = self.contentView
-                var newOrigin = clipView.bounds.origin
-                newOrigin.y -= event.scrollingDeltaY
-                // Clamp
-                let maxY = max(0, (clipView.documentView?.frame.height ?? 0) - clipView.bounds.height)
-                newOrigin.y = min(max(0, newOrigin.y), maxY)
-                clipView.setBoundsOrigin(newOrigin)
-                self.reflectScrolledClipView(clipView)
-                return nil // consume the event
+
+                if event.modifierFlags.contains(.command) {
+                    // Cmd+scroll: scroll the outer window
+                    let clipView = self.contentView
+                    var newOrigin = clipView.bounds.origin
+                    newOrigin.y -= event.scrollingDeltaY
+                    let maxY = max(0, (clipView.documentView?.frame.height ?? 0) - clipView.bounds.height)
+                    newOrigin.y = min(max(0, newOrigin.y), maxY)
+                    clipView.setBoundsOrigin(newOrigin)
+                    self.reflectScrolledClipView(clipView)
+                    return nil
+                }
+
+                // Non-Cmd scroll: find terminal view under cursor and forward to it.
+                guard let docView = self.contentView.documentView else { return event }
+                let loc = docView.convert(event.locationInWindow, from: nil)
+                guard let hitView = docView.hitTest(loc) else { return event }
+                var current: NSView? = hitView
+                while let view = current {
+                    if let termView = view as? LocalProcessTerminalView {
+                        let delta = event.scrollingDeltaY
+                        if delta == 0 { return nil }
+
+                        // When the app inside the terminal has mouse reporting on
+                        // (e.g. tmux with `mouse on`), send scroll as mouse button
+                        // events so the app handles scrollback natively.
+                        if termView.terminal.mouseMode != .off {
+                            let lineHeight: CGFloat = 16
+                            let lines = max(1, Int(abs(delta) / lineHeight))
+                            // button 4 = scroll up (encodes to 64), button 5 = scroll down (65)
+                            let button = delta > 0 ? 4 : 5
+                            let flags = termView.terminal.encodeButton(
+                                button: button, release: false,
+                                shift: false, meta: false, control: false)
+                            // Use center of the terminal as position
+                            let cols = termView.terminal.cols
+                            let rows = termView.terminal.rows
+                            for _ in 0..<lines {
+                                termView.terminal.sendEvent(
+                                    buttonFlags: flags, x: cols / 2, y: rows / 2)
+                            }
+                        } else {
+                            // No mouse reporting — scroll SwiftTerm's own buffer
+                            let lineHeight: CGFloat = 16
+                            let lines = max(1, Int(abs(delta) / lineHeight))
+                            if delta > 0 {
+                                termView.scrollUp(lines: lines)
+                            } else {
+                                termView.scrollDown(lines: lines)
+                            }
+                        }
+                        return nil
+                    }
+                    current = view.superview
+                }
+                return event
             }
         }
     }
@@ -38,12 +84,10 @@ class CmdNSScrollView: NSScrollView {
         super.removeFromSuperview()
     }
 
-    // Don't scroll on normal scroll events — let terminals handle them
+    // All scroll handling is done via the event monitor above.
+    // This override prevents NSScrollView from scrolling its content on any stray events.
     override func scrollWheel(with event: NSEvent) {
-        if event.modifierFlags.contains(.command) {
-            super.scrollWheel(with: event)
-        }
-        // Non-Cmd scroll events fall through to subviews naturally
+        // no-op — monitor handles everything
     }
 }
 

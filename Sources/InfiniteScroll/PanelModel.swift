@@ -28,11 +28,40 @@ class PanelModel: ObservableObject, Identifiable {
     let id: UUID
     @Published var title: String
     @Published var cells: [CellModel]
+    /// Persisted notes content — survives toggling notes off/on.
+    @Published var notesText: String
+    @Published var showNotes: Bool
 
-    init(index: Int, id: UUID = UUID(), cells: [CellModel]? = nil) {
+    init(index: Int, id: UUID = UUID(), cells: [CellModel]? = nil,
+         notesText: String = "", showNotes: Bool = false) {
         self.id = id
         self.title = "Row #\(index)"
-        self.cells = cells ?? [CellModel(type: .terminal), CellModel(type: .notes)]
+        self.notesText = notesText
+        self.showNotes = showNotes
+        if let cells = cells {
+            self.cells = cells
+        } else {
+            // Default: one terminal, no notes
+            self.cells = [CellModel(type: .terminal)]
+        }
+        // If showNotes, ensure a notes cell is present at the end
+        if showNotes && !self.cells.contains(where: { $0.type == .notes }) {
+            self.cells.append(CellModel(type: .notes, text: notesText))
+        }
+    }
+
+    /// Toggle the notes cell on/off. Notes content is preserved across toggles.
+    func toggleNotes() {
+        if let idx = cells.firstIndex(where: { $0.type == .notes }) {
+            // Save content and remove
+            notesText = cells[idx].text
+            cells.remove(at: idx)
+            showNotes = false
+        } else {
+            // Add notes cell at the end
+            cells.append(CellModel(type: .notes, text: notesText))
+            showNotes = true
+        }
     }
 }
 
@@ -49,6 +78,8 @@ struct PanelState: Codable {
     let id: String
     let title: String
     let cells: [CellState]?
+    let notesText: String?
+    let showNotes: Bool?
     // Backward compat
     let cwd: String?
     let notes: String?
@@ -76,10 +107,19 @@ extension CellModel {
 
 extension PanelModel {
     func toState() -> PanelState {
-        PanelState(
+        // When notes cell is visible, persist its latest text as notesText too
+        let currentNotesText: String
+        if let notesCell = cells.first(where: { $0.type == .notes }) {
+            currentNotesText = notesCell.text
+        } else {
+            currentNotesText = notesText
+        }
+        return PanelState(
             id: id.uuidString,
             title: title,
             cells: cells.map { $0.toState() },
+            notesText: currentNotesText,
+            showNotes: showNotes,
             cwd: nil,
             notes: nil
         )
@@ -88,14 +128,21 @@ extension PanelModel {
     static func from(state: PanelState, index: Int) -> PanelModel {
         let cells: [CellModel]
         if let cellStates = state.cells, !cellStates.isEmpty {
-            cells = cellStates.map { CellModel.from(state: $0) }
+            // Filter out notes cells from persisted state — toggleNotes() will re-add if needed
+            cells = cellStates.compactMap { cellState in
+                cellState.type == .notes ? nil : CellModel.from(state: cellState)
+            }
         } else {
             // Backward compat: old format had cwd + notes
-            let term = CellModel(type: .terminal, cwd: state.cwd)
-            let note = CellModel(type: .notes, text: state.notes ?? "")
-            cells = [term, note]
+            cells = [CellModel(type: .terminal, cwd: state.cwd)]
         }
-        let model = PanelModel(index: index, id: UUID(uuidString: state.id) ?? UUID(), cells: cells)
+        let model = PanelModel(
+            index: index,
+            id: UUID(uuidString: state.id) ?? UUID(),
+            cells: cells,
+            notesText: state.notesText ?? state.notes ?? "",
+            showNotes: state.showNotes ?? false
+        )
         model.title = state.title
         return model
     }
