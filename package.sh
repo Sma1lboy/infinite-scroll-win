@@ -65,8 +65,19 @@ else
     install_name_tool -id "@executable_path/../Frameworks/libutf8proc.3.dylib" \
         "$FRAMEWORKS/libutf8proc.3.dylib"
 
+    # Re-sign everything after rpath changes
+    echo "=== Signing bundled binaries ==="
+    codesign --force --sign - "$FRAMEWORKS/libevent_core-2.1.7.dylib"
+    codesign --force --sign - "$FRAMEWORKS/libncursesw.6.dylib"
+    codesign --force --sign - "$FRAMEWORKS/libutf8proc.3.dylib"
+    codesign --force --sign - "$APP_NAME.app/Contents/MacOS/tmux"
+
     echo "=== Verifying tmux dependencies ==="
     otool -L "$APP_NAME.app/Contents/MacOS/tmux"
+
+    # Verify bundled tmux actually works
+    echo "=== Testing bundled tmux ==="
+    "$APP_NAME.app/Contents/MacOS/tmux" -V && echo "OK" || echo "FAILED — bundled tmux broken"
 fi
 
 # Write Info.plist
@@ -99,6 +110,10 @@ cat > "$APP_NAME.app/Contents/Info.plist" << 'PLIST'
 </plist>
 PLIST
 sed -i '' "s/VERSION_PLACEHOLDER/$VERSION/g" "$APP_NAME.app/Contents/Info.plist"
+
+# Sign the whole .app bundle
+echo "=== Signing app bundle ==="
+codesign --force --deep --sign - "$APP_NAME.app"
 
 echo "=== Creating DMG ==="
 rm -rf dmg_staging "$BUNDLE_NAME.dmg"
