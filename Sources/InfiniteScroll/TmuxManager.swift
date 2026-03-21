@@ -1,38 +1,65 @@
 import Foundation
 
 enum TmuxManager {
-    /// Tmux session name prefix for Infinite Scroll
     static let prefix = "is-"
+    private static var _cachedPath: String?
+    private static var _checked = false
 
-    /// Find tmux binary — prefer system, fall back to bundled
+    /// Find a working tmux binary — verifies it actually runs
     static func findTmux() -> String? {
-        // 1. System tmux
+        if _checked { return _cachedPath }
+        _checked = true
+
         let candidates = [
             "/opt/homebrew/bin/tmux",
             "/usr/local/bin/tmux",
             "/usr/bin/tmux",
         ]
-        for path in candidates {
-            if FileManager.default.isExecutableFile(atPath: path) {
-                return path
-            }
-        }
-        // 2. Bundled tmux inside the .app
+
+        // Also check bundled
         if let bundlePath = Bundle.main.executableURL?
             .deletingLastPathComponent()
-            .appendingPathComponent("tmux").path,
-           FileManager.default.isExecutableFile(atPath: bundlePath) {
-            return bundlePath
+            .appendingPathComponent("tmux").path {
+            // Try system first, then bundled
+            for path in candidates + [bundlePath] {
+                if FileManager.default.isExecutableFile(atPath: path) && verifyTmux(path) {
+                    _cachedPath = path
+                    return path
+                }
+            }
+        } else {
+            for path in candidates {
+                if FileManager.default.isExecutableFile(atPath: path) && verifyTmux(path) {
+                    _cachedPath = path
+                    return path
+                }
+            }
         }
+
+        _cachedPath = nil
         return nil
     }
 
-    /// Session name for a cell UUID
-    static func sessionName(for id: UUID) -> String {
-        return "\(prefix)\(id.uuidString)"
+    /// Actually run `tmux -V` to verify it works (dylibs load, etc.)
+    private static func verifyTmux(_ path: String) -> Bool {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: path)
+        task.arguments = ["-V"]
+        task.standardOutput = FileHandle.nullDevice
+        task.standardError = FileHandle.nullDevice
+        do {
+            try task.run()
+            task.waitUntilExit()
+            return task.terminationStatus == 0
+        } catch {
+            return false
+        }
     }
 
-    /// Check if a tmux session exists
+    static func sessionName(for id: UUID) -> String {
+        "\(prefix)\(id.uuidString)"
+    }
+
     static func sessionExists(_ name: String) -> Bool {
         guard let tmux = findTmux() else { return false }
         let task = Process()
@@ -49,7 +76,6 @@ enum TmuxManager {
         }
     }
 
-    /// Kill a tmux session
     static func killSession(_ name: String) {
         guard let tmux = findTmux() else { return }
         let task = Process()
@@ -61,7 +87,6 @@ enum TmuxManager {
         task.waitUntilExit()
     }
 
-    /// List all Infinite Scroll tmux sessions
     static func listSessions() -> [String] {
         guard let tmux = findTmux() else { return [] }
         let task = Process()
@@ -81,7 +106,6 @@ enum TmuxManager {
             .filter { $0.hasPrefix(prefix) }
     }
 
-    /// Clean up orphaned sessions (sessions not in the given set of active cell IDs)
     static func cleanupOrphans(activeCellIDs: Set<UUID>) {
         let activeNames = Set(activeCellIDs.map { sessionName(for: $0) })
         for session in listSessions() {
