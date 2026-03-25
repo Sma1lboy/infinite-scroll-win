@@ -6,8 +6,6 @@ import SwiftTerm
 
 class CmdNSScrollView: NSScrollView {
     private var eventMonitor: Any?
-    /// Debounce timer to auto-exit tmux copy-mode after scrolling stops
-    private var copyModeExitTimer: DispatchWorkItem?
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
@@ -47,23 +45,12 @@ class CmdNSScrollView: NSScrollView {
                             let lines = max(1, Int(abs(delta) / lineHeight))
                             let cmd = delta > 0 ? "scroll-up" : "scroll-down"
 
-                            // Cancel any pending copy-mode exit
-                            self.copyModeExitTimer?.cancel()
-
                             DispatchQueue.global(qos: .userInteractive).async {
                                 TmuxManager.run(["copy-mode", "-t", session])
                                 for _ in 0..<lines {
                                     TmuxManager.run(["send-keys", "-t", session, "-X", cmd])
                                 }
                             }
-
-                            // Auto-exit copy-mode after 5s of no scrolling
-                            let exitWork = DispatchWorkItem {
-                                TmuxManager.run(["send-keys", "-t", session, "-X", "cancel"])
-                            }
-                            self.copyModeExitTimer = exitWork
-                            DispatchQueue.global(qos: .utility).asyncAfter(
-                                deadline: .now() + 5.0, execute: exitWork)
                         } else {
                             // No tmux — use SwiftTerm's own scrollback buffer
                             termView.scrollWheel(with: event)
