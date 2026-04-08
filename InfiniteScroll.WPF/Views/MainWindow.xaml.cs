@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using InfiniteScroll.ViewModels;
 
@@ -16,23 +17,42 @@ public partial class MainWindow : Window
 
         Closing += (_, _) => ViewModel.Save();
 
-        // Ctrl+Scroll for window scrolling (like Cmd+Scroll on macOS)
-        MainScrollViewer.PreviewMouseWheel += OnPreviewMouseWheel;
+        // Scroll focused row into view when focus changes
+        ViewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(PanelStoreViewModel.FocusedCellId))
+                ScrollFocusedRowIntoView();
+        };
     }
 
-    private void OnPreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    private void MainScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
         if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
         {
-            // Ctrl+Scroll: scroll the outer window
+            // Ctrl+Scroll: scroll the outer container (like Cmd+Scroll on macOS)
             MainScrollViewer.ScrollToVerticalOffset(
                 MainScrollViewer.VerticalOffset - e.Delta);
             e.Handled = true;
         }
+        // Without Ctrl: let the event propagate to the terminal control
     }
 
-    private void HelpOverlay_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    private void ScrollFocusedRowIntoView()
     {
-        // Focus handling for help overlay
+        if (ViewModel.FocusedCellId == null) return;
+
+        // Find the focused panel and its visual container
+        var focusedCellId = ViewModel.FocusedCellId.Value;
+        for (var i = 0; i < ViewModel.Panels.Count; i++)
+        {
+            var panel = ViewModel.Panels[i];
+            if (panel.Cells.Any(c => c.Id == focusedCellId))
+            {
+                // Get the container element for this panel
+                var container = PanelList.ItemContainerGenerator.ContainerFromIndex(i) as FrameworkElement;
+                container?.BringIntoView();
+                break;
+            }
+        }
     }
 }

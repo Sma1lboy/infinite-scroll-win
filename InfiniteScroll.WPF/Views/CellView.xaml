@@ -10,14 +10,16 @@
             <DataTemplate x:Key="TerminalTemplate" DataType="{x:Type models:CellModel}">
                 <controls:TerminalControl
                     InitialDirectory="{Binding Cwd}"
-                    FontSize="{Binding DataContext.FontSize, RelativeSource={RelativeSource AncestorType=Window}}" />
+                    FontSize="{Binding TerminalFontSize, RelativeSource={RelativeSource AncestorType=views:CellView}}"
+                    xmlns:views="clr-namespace:InfiniteScroll.Views" />
             </DataTemplate>
 
             <!-- Notes cell template -->
             <DataTemplate x:Key="NotesTemplate" DataType="{x:Type models:CellModel}">
                 <controls:NotesControl
                     Text="{Binding Text, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                    FontSize="{Binding DataContext.FontSize, RelativeSource={RelativeSource AncestorType=Window}}" />
+                    FontSize="{Binding TerminalFontSize, RelativeSource={RelativeSource AncestorType=views:CellView}}"
+                    xmlns:views="clr-namespace:InfiniteScroll.Views" />
             </DataTemplate>
         </ContentControl.Resources>
 

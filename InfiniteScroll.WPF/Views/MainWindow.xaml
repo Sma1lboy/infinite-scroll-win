@@ -37,8 +37,10 @@
         <ScrollViewer x:Name="MainScrollViewer"
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled"
-                      Background="{StaticResource BackgroundBrush}">
-            <ItemsControl ItemsSource="{Binding Panels}"
+                      Background="{StaticResource BackgroundBrush}"
+                      PreviewMouseWheel="MainScrollViewer_PreviewMouseWheel">
+            <ItemsControl x:Name="PanelList"
+                          ItemsSource="{Binding Panels}"
                           Margin="12">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
@@ -48,7 +50,7 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <views:RowView Margin="0,0,0,12"
-                                       FontSize="{Binding DataContext.FontSize, RelativeSource={RelativeSource AncestorType=Window}}"
+                                       TerminalFontSize="{Binding DataContext.FontSize, RelativeSource={RelativeSource AncestorType=Window}}"
                                        FocusedCellId="{Binding DataContext.FocusedCellId, RelativeSource={RelativeSource AncestorType=Window}}" />
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
@@ -56,7 +58,6 @@
         </ScrollViewer>
 
         <!-- Help overlay -->
-        <controls:HelpOverlay Visibility="{Binding ShowHelp, Converter={StaticResource BoolToVisibility}}"
-                              IsVisibleChanged="HelpOverlay_IsVisibleChanged" />
+        <controls:HelpOverlay Visibility="{Binding ShowHelp, Converter={StaticResource BoolToVisibility}}" />
     </Grid>
 </Window>

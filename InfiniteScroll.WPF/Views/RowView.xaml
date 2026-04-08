@@ -6,8 +6,6 @@
              Height="750">
 
     <UserControl.Resources>
-        <converters:CellWidthConverter x:Key="CellWidthConverter" />
-        <converters:FocusBorderConverter x:Key="FocusBorderConverter" />
         <converters:StatusColorConverter x:Key="StatusColorConverter" />
     </UserControl.Resources>
 
@@ -53,9 +51,10 @@
                             Width="20" Height="20"
                             Click="CloseButton_Click"
                             ToolTip="Close row">
-                        <TextBlock Text="&#xE8BB;"
-                                   FontFamily="Segoe MDL2 Assets"
+                        <TextBlock Text="X"
+                                   FontFamily="Consolas"
                                    FontSize="10"
+                                   FontWeight="Bold"
                                    Foreground="{StaticResource TextSecondaryBrush}" />
                     </Button>
 
@@ -64,10 +63,12 @@
                             Style="{StaticResource IconButton}"
                             Width="20" Height="20"
                             Click="NotesToggle_Click"
-                            ToolTip="Toggle notes">
-                        <TextBlock Text="&#xE8A5;"
-                                   FontFamily="Segoe MDL2 Assets"
-                                   FontSize="10">
+                            ToolTip="Toggle notes"
+                            Margin="0,0,4,0">
+                        <TextBlock Text="N"
+                                   FontFamily="Consolas"
+                                   FontSize="10"
+                                   FontWeight="Bold">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
@@ -87,6 +88,7 @@
 
             <!-- Cells container -->
             <ItemsControl Grid.Row="1"
+                          x:Name="CellsContainer"
                           ItemsSource="{Binding Cells}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
@@ -95,15 +97,19 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border BorderThickness="1,0,0,0"
-                                BorderBrush="{StaticResource BorderBrush}">
-                            <!-- Focus highlight border -->
-                            <Border x:Name="FocusBorder"
-                                    BorderThickness="2"
-                                    BorderBrush="Transparent">
-                                <views:CellView />
+                        <Grid>
+                            <!-- Cell divider (left border) -->
+                            <Border BorderThickness="1,0,0,0"
+                                    BorderBrush="{StaticResource BorderBrush}">
+                                <views:CellView
+                                    TerminalFontSize="{Binding TerminalFontSize, RelativeSource={RelativeSource AncestorType=views:RowView}}" />
                             </Border>
-                        </Border>
+                            <!-- Focus highlight overlay -->
+                            <Border x:Name="FocusHighlight"
+                                    BorderThickness="2"
+                                    BorderBrush="Transparent"
+                                    IsHitTestVisible="False" />
+                        </Grid>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
