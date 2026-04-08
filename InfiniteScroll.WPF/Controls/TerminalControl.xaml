@@ -1,0 +1,28 @@
+<UserControl x:Class="InfiniteScroll.Controls.TerminalControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{StaticResource TerminalBackgroundBrush}"
+             GotFocus="OnGotFocus"
+             Focusable="True"
+             KeyDown="OnKeyDown"
+             TextInput="OnTextInput"
+             PreviewKeyDown="OnPreviewKeyDown">
+
+    <ScrollViewer x:Name="OutputScroller"
+                  VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled"
+                  Background="{StaticResource TerminalBackgroundBrush}"
+                  Focusable="False">
+        <RichTextBox x:Name="TerminalOutput"
+                     IsReadOnly="True"
+                     Background="{StaticResource TerminalBackgroundBrush}"
+                     Foreground="{StaticResource TerminalForegroundBrush}"
+                     FontFamily="Cascadia Mono, Consolas, Courier New"
+                     FontSize="{Binding FontSize, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                     BorderThickness="0"
+                     Padding="8"
+                     IsDocumentEnabled="False"
+                     Focusable="False"
+                     IsHitTestVisible="True" />
+    </ScrollViewer>
+</UserControl>

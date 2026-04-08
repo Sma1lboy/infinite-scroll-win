@@ -1,0 +1,118 @@
+<UserControl x:Class="InfiniteScroll.Views.RowView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="clr-namespace:InfiniteScroll.Views"
+             xmlns:converters="clr-namespace:InfiniteScroll.Converters"
+             Height="750">
+
+    <UserControl.Resources>
+        <converters:StatusColorConverter x:Key="StatusColorConverter" />
+    </UserControl.Resources>
+
+    <Border CornerRadius="8"
+            BorderBrush="{StaticResource BorderBrush}"
+            BorderThickness="1"
+            ClipToBounds="True">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="32" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- Header bar -->
+            <Border Grid.Row="0"
+                    Background="{StaticResource HeaderBackgroundBrush}">
+                <DockPanel Margin="12,0">
+                    <!-- Status indicator -->
+                    <Ellipse Width="8" Height="8"
+                             DockPanel.Dock="Left"
+                             VerticalAlignment="Center"
+                             Margin="0,0,8,0">
+                        <Ellipse.Fill>
+                            <MultiBinding Converter="{StaticResource StatusColorConverter}">
+                                <Binding Path="Cells" />
+                                <Binding Path="Cells.Count" />
+                            </MultiBinding>
+                        </Ellipse.Fill>
+                    </Ellipse>
+
+                    <!-- Title -->
+                    <TextBlock Text="{Binding Title}"
+                               DockPanel.Dock="Left"
+                               VerticalAlignment="Center"
+                               FontFamily="Consolas"
+                               FontSize="12"
+                               FontWeight="Medium"
+                               Foreground="{StaticResource TextBrush}" />
+
+                    <!-- Close button -->
+                    <Button DockPanel.Dock="Right"
+                            Style="{StaticResource IconButton}"
+                            Width="20" Height="20"
+                            Click="CloseButton_Click"
+                            ToolTip="Close row">
+                        <TextBlock Text="X"
+                                   FontFamily="Consolas"
+                                   FontSize="10"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource TextSecondaryBrush}" />
+                    </Button>
+
+                    <!-- Notes toggle -->
+                    <Button DockPanel.Dock="Right"
+                            Style="{StaticResource IconButton}"
+                            Width="20" Height="20"
+                            Click="NotesToggle_Click"
+                            ToolTip="Toggle notes"
+                            Margin="0,0,4,0">
+                        <TextBlock Text="N"
+                                   FontFamily="Consolas"
+                                   FontSize="10"
+                                   FontWeight="Bold">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ShowNotes}" Value="True">
+                                            <Setter Property="Foreground" Value="{StaticResource FocusBorderBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Button>
+
+                    <Border />
+                </DockPanel>
+            </Border>
+
+            <!-- Cells container -->
+            <ItemsControl Grid.Row="1"
+                          x:Name="CellsContainer"
+                          ItemsSource="{Binding Cells}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Rows="1" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid>
+                            <!-- Cell divider (left border) -->
+                            <Border BorderThickness="1,0,0,0"
+                                    BorderBrush="{StaticResource BorderBrush}">
+                                <views:CellView
+                                    TerminalFontSize="{Binding TerminalFontSize, RelativeSource={RelativeSource AncestorType=views:RowView}}" />
+                            </Border>
+                            <!-- Focus highlight overlay -->
+                            <Border x:Name="FocusHighlight"
+                                    BorderThickness="2"
+                                    BorderBrush="Transparent"
+                                    IsHitTestVisible="False" />
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Grid>
+    </Border>
+</UserControl>

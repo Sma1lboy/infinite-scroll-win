@@ -1,0 +1,23 @@
+<UserControl x:Class="InfiniteScroll.Controls.NotesControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{StaticResource NotesBackgroundBrush}"
+             GotFocus="OnGotFocus">
+
+    <TextBox x:Name="NotesTextBox"
+             Text="{Binding Text, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+             AcceptsReturn="True"
+             AcceptsTab="True"
+             TextWrapping="Wrap"
+             VerticalScrollBarVisibility="Auto"
+             HorizontalScrollBarVisibility="Disabled"
+             Background="{StaticResource NotesBackgroundBrush}"
+             Foreground="{StaticResource NotesTextBrush}"
+             CaretBrush="{StaticResource NotesTextBrush}"
+             SelectionBrush="#804D66B3"
+             FontFamily="Cascadia Mono, Consolas, Courier New"
+             FontSize="{Binding FontSize, RelativeSource={RelativeSource AncestorType=UserControl}}"
+             BorderThickness="0"
+             Padding="8"
+             SpellCheck.IsEnabled="False" />
+</UserControl>
