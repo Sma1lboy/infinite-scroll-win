@@ -1,0 +1,35 @@
+<UserControl x:Class="InfiniteScroll.Views.CellView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:models="clr-namespace:InfiniteScroll.Models"
+             xmlns:controls="clr-namespace:InfiniteScroll.Controls">
+
+    <ContentControl Content="{Binding}">
+        <ContentControl.Resources>
+            <!-- Terminal cell template -->
+            <DataTemplate x:Key="TerminalTemplate" DataType="{x:Type models:CellModel}">
+                <controls:TerminalControl
+                    InitialDirectory="{Binding Cwd}"
+                    FontSize="{Binding DataContext.FontSize, RelativeSource={RelativeSource AncestorType=Window}}" />
+            </DataTemplate>
+
+            <!-- Notes cell template -->
+            <DataTemplate x:Key="NotesTemplate" DataType="{x:Type models:CellModel}">
+                <controls:NotesControl
+                    Text="{Binding Text, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                    FontSize="{Binding DataContext.FontSize, RelativeSource={RelativeSource AncestorType=Window}}" />
+            </DataTemplate>
+        </ContentControl.Resources>
+
+        <ContentControl.Style>
+            <Style TargetType="ContentControl">
+                <Setter Property="ContentTemplate" Value="{StaticResource TerminalTemplate}" />
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding Type}" Value="{x:Static models:CellType.Notes}">
+                        <Setter Property="ContentTemplate" Value="{StaticResource NotesTemplate}" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </ContentControl.Style>
+    </ContentControl>
+</UserControl>
