@@ -19,6 +19,8 @@ public class ConPtyTerminal : IDisposable
     private SafeFileHandle? _hPipePtyOut;
     private Process? _process;
     private Thread? _readThread;
+    private FileStream? _inputStream;   // long-lived writer over _hPipeIn
+    private readonly object _inputLock = new();
     private bool _disposed;
 
     public event Action<byte[]>? DataReceived;
@@ -76,9 +78,17 @@ public class ConPtyTerminal : IDisposable
 
         // Start process attached to the pseudo console
         var shellPath = FindShell();
-        _process = StartProcessWithPseudoConsole(shellPath, _hPC, CurrentDirectory);
+        var commandLine = BuildShellCommandLine(shellPath);
+        _process = StartProcessWithPseudoConsole(commandLine, _hPC, CurrentDirectory);
         _process.EnableRaisingEvents = true;
         _process.Exited += (_, _) => ProcessExited?.Invoke(_process.ExitCode);
+
+        // Open a long-lived writer over the input pipe. NOTE: FileStream takes
+        // ownership of the SafeFileHandle, so we MUST NOT wrap _hPipeIn in a
+        // throwaway `using` FileStream per write — that would close the pipe
+        // after the first keystroke (the original bug: typing produced no
+        // output because the PTY input pipe was closed immediately).
+        _inputStream = new FileStream(_hPipeIn, FileAccess.Write, 4096, false);
 
         // Start reading output
         _readThread = new Thread(ReadOutputLoop) { IsBackground = true, Name = "ConPTY-Read" };
@@ -160,16 +170,18 @@ public class ConPtyTerminal : IDisposable
 
     public void SendInput(byte[] data)
     {
-        if (_hPipeIn != null && !_hPipeIn.IsClosed)
+        lock (_inputLock)
         {
-            using var stream = new FileStream(_hPipeIn, FileAccess.Write, 4096, false);
-            stream.Write(data, 0, data.Length);
-            stream.Flush();
-        }
-        else if (_process is { HasExited: false } && _process.StartInfo.RedirectStandardInput)
-        {
-            _process.StandardInput.BaseStream.Write(data, 0, data.Length);
-            _process.StandardInput.BaseStream.Flush();
+            if (_inputStream != null && _hPipeIn is { IsClosed: false })
+            {
+                _inputStream.Write(data, 0, data.Length);
+                _inputStream.Flush();
+            }
+            else if (_process is { HasExited: false } && _process.StartInfo.RedirectStandardInput)
+            {
+                _process.StandardInput.BaseStream.Write(data, 0, data.Length);
+                _process.StandardInput.BaseStream.Flush();
+            }
         }
     }
 
@@ -194,6 +206,23 @@ public class ConPtyTerminal : IDisposable
             try { _process.Kill(entireProcessTree: true); }
             catch { /* already exited */ }
         }
+    }
+
+    /// <summary>
+    /// Build the command line for the shell. For PowerShell we suppress
+    /// PSReadLine because it uses cursor-positioning escape sequences
+    /// (CUP/EL/ED) to redraw the prompt in place on every keystroke, and
+    /// the simple linear-append VtParser used here cannot honor cursor
+    /// positioning — every keystroke would otherwise duplicate the prompt.
+    /// </summary>
+    private static string BuildShellCommandLine(string shellPath)
+    {
+        var name = Path.GetFileName(shellPath).ToLowerInvariant();
+        if (name is "pwsh.exe" or "powershell.exe")
+        {
+            return $"\"{shellPath}\" -NoLogo -NoExit -Command \"Remove-Module PSReadLine -ErrorAction SilentlyContinue\"";
+        }
+        return $"\"{shellPath}\"";
     }
 
     private static string FindShell()
@@ -271,7 +300,10 @@ public class ConPtyTerminal : IDisposable
             _hPC = IntPtr.Zero;
         }
 
-        _hPipeIn?.Dispose();
+        // _inputStream owns _hPipeIn, so disposing it closes the handle.
+        _inputStream?.Dispose();
+        _inputStream = null;
+        if (_inputStream == null) _hPipeIn = null;
         _hPipeOut?.Dispose();
         _hPipePtyIn?.Dispose();
         _hPipePtyOut?.Dispose();
