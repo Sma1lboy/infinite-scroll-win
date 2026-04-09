@@ -4,9 +4,11 @@
              Background="{StaticResource TerminalBackgroundBrush}"
              GotFocus="OnGotFocus"
              Focusable="True"
+             InputMethod.IsInputMethodEnabled="False"
              KeyDown="OnKeyDown"
              TextInput="OnTextInput"
-             PreviewKeyDown="OnPreviewKeyDown">
+             PreviewKeyDown="OnPreviewKeyDown"
+             PreviewMouseLeftButtonDown="OnPreviewMouseLeftButtonDown">
 
     <ScrollViewer x:Name="OutputScroller"
                   VerticalScrollBarVisibility="Auto"

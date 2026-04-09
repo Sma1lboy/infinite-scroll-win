@@ -51,7 +51,7 @@ public partial class TerminalControl : UserControl
         var rows = Math.Max(24, (int)(ActualHeight / 16));
         _terminal.Start(cols, rows);
 
-        Focus();
+        Keyboard.Focus(this);
     }
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
@@ -127,6 +127,26 @@ public partial class TerminalControl : UserControl
     {
         if (_terminal == null || !_terminal.IsRunning) return;
 
+        // Reserve app-level shortcuts (registered on MainWindow.InputBindings).
+        // Without this, the terminal swallows them in the tunneling phase and
+        // none of the Ctrl+W / Ctrl+D / Ctrl+Arrows / zoom / help bindings fire.
+        var mods = Keyboard.Modifiers;
+        bool ctrl = mods.HasFlag(ModifierKeys.Control);
+        bool shift = mods.HasFlag(ModifierKeys.Shift);
+        bool alt = mods.HasFlag(ModifierKeys.Alt);
+        if (ctrl && !alt)
+        {
+            // Ctrl+Shift+Down → AddPanel
+            if (shift && e.Key == Key.Down) return;
+            // Ctrl+Arrows → focus navigation
+            if (!shift && (e.Key == Key.Up || e.Key == Key.Down ||
+                           e.Key == Key.Left || e.Key == Key.Right)) return;
+            // Ctrl+W close, Ctrl+D duplicate, Ctrl+= / Ctrl+- zoom, Ctrl+/ help
+            if (!shift && (e.Key == Key.W || e.Key == Key.D ||
+                           e.Key == Key.OemPlus || e.Key == Key.OemMinus ||
+                           e.Key == Key.OemQuestion)) return;
+        }
+
         // Handle special keys that TextInput doesn't capture
         byte[]? data = null;
 
@@ -136,7 +156,7 @@ public partial class TerminalControl : UserControl
                 data = "\r"u8.ToArray();
                 break;
             case Key.Back:
-                if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+                if (ctrl)
                 {
                     // Ctrl+Backspace → Ctrl+W (delete word)
                     data = [(byte)0x17];
@@ -213,6 +233,16 @@ public partial class TerminalControl : UserControl
             _terminal.SendInput(e.Text);
             e.Handled = true;
         }
+    }
+
+    private void OnPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        // Click anywhere in the terminal area MUST land keyboard focus on this
+        // UserControl. Without this the outer MainScrollViewer (or the inner
+        // OutputScroller) ends up with keyboard focus and our PreviewKeyDown /
+        // TextInput handlers never fire. Plain Focus() only sets logical focus
+        // — Keyboard.Focus() is required for key events to be routed here.
+        Keyboard.Focus(this);
     }
 
     private void OnGotFocus(object sender, RoutedEventArgs e)

@@ -38,6 +38,7 @@
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled"
                       Background="{StaticResource BackgroundBrush}"
+                      Focusable="False"
                       PreviewMouseWheel="MainScrollViewer_PreviewMouseWheel">
             <ItemsControl x:Name="PanelList"
                           ItemsSource="{Binding Panels}"
