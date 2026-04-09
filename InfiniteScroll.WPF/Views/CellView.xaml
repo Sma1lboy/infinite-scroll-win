@@ -2,7 +2,8 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:models="clr-namespace:InfiniteScroll.Models"
-             xmlns:controls="clr-namespace:InfiniteScroll.Controls">
+             xmlns:controls="clr-namespace:InfiniteScroll.Controls"
+             xmlns:views="clr-namespace:InfiniteScroll.Views">
 
     <ContentControl Content="{Binding}">
         <ContentControl.Resources>
@@ -10,16 +11,14 @@
             <DataTemplate x:Key="TerminalTemplate" DataType="{x:Type models:CellModel}">
                 <controls:TerminalControl
                     InitialDirectory="{Binding Cwd}"
-                    FontSize="{Binding TerminalFontSize, RelativeSource={RelativeSource AncestorType=views:CellView}}"
-                    xmlns:views="clr-namespace:InfiniteScroll.Views" />
+                    FontSize="{Binding TerminalFontSize, RelativeSource={RelativeSource AncestorType=views:CellView}}" />
             </DataTemplate>
 
             <!-- Notes cell template -->
             <DataTemplate x:Key="NotesTemplate" DataType="{x:Type models:CellModel}">
                 <controls:NotesControl
                     Text="{Binding Text, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                    FontSize="{Binding TerminalFontSize, RelativeSource={RelativeSource AncestorType=views:CellView}}"
-                    xmlns:views="clr-namespace:InfiniteScroll.Views" />
+                    FontSize="{Binding TerminalFontSize, RelativeSource={RelativeSource AncestorType=views:CellView}}" />
             </DataTemplate>
         </ContentControl.Resources>
 
