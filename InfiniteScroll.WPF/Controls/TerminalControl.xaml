@@ -5,26 +5,35 @@
              GotFocus="OnGotFocus"
              Focusable="True"
              InputMethod.IsInputMethodEnabled="False"
+             Cursor="IBeam"
              KeyDown="OnKeyDown"
              TextInput="OnTextInput"
              PreviewKeyDown="OnPreviewKeyDown"
-             PreviewMouseLeftButtonDown="OnPreviewMouseLeftButtonDown">
+             PreviewMouseLeftButtonDown="OnPreviewMouseLeftButtonDown"
+             PreviewMouseRightButtonDown="OnPreviewMouseRightButtonDown"
+             PreviewMouseWheel="OnPreviewMouseWheel">
 
     <ScrollViewer x:Name="OutputScroller"
                   VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Disabled"
                   Background="{StaticResource TerminalBackgroundBrush}"
                   Focusable="False">
-        <RichTextBox x:Name="TerminalOutput"
-                     IsReadOnly="True"
-                     Background="{StaticResource TerminalBackgroundBrush}"
-                     Foreground="{StaticResource TerminalForegroundBrush}"
-                     FontFamily="Cascadia Mono, Consolas, Courier New"
-                     FontSize="{Binding FontSize, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                     BorderThickness="0"
-                     Padding="8"
-                     IsDocumentEnabled="False"
-                     Focusable="False"
-                     IsHitTestVisible="True" />
+        <Grid>
+            <RichTextBox x:Name="TerminalOutput"
+                         IsReadOnly="True"
+                         Background="{StaticResource TerminalBackgroundBrush}"
+                         Foreground="{StaticResource TerminalForegroundBrush}"
+                         FontFamily="Cascadia Mono, Consolas, Courier New"
+                         FontSize="{Binding FontSize, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                         BorderThickness="0"
+                         Padding="8"
+                         IsDocumentEnabled="False"
+                         Focusable="False"
+                         IsHitTestVisible="True" />
+
+            <!-- Cursor overlay inside ScrollViewer so it scrolls with content -->
+            <Canvas x:Name="CursorCanvas"
+                    IsHitTestVisible="False" />
+        </Grid>
     </ScrollViewer>
 </UserControl>

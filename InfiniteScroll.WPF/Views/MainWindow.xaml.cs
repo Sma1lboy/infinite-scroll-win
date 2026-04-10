@@ -60,17 +60,16 @@ public partial class MainWindow : Window
 
     private void MainScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
-        // Ctrl+Wheel: let the inner terminal ScrollViewer handle its own history
+        // Ctrl+Wheel: scroll the outer canvas (between rows)
         if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+        {
+            MainScrollViewer.ScrollToVerticalOffset(
+                MainScrollViewer.VerticalOffset - e.Delta);
+            e.Handled = true;
             return;
+        }
 
-        // Plain wheel: scroll the outer window. We must intercept here in the
-        // tunneling PreviewMouseWheel phase, otherwise the nested ScrollViewer
-        // inside each TerminalControl swallows the event and the main window
-        // never scrolls.
-        MainScrollViewer.ScrollToVerticalOffset(
-            MainScrollViewer.VerticalOffset - e.Delta);
-        e.Handled = true;
+        // Plain wheel: let the inner terminal ScrollViewer handle it
     }
 
     private void ScrollFocusedRowIntoView()

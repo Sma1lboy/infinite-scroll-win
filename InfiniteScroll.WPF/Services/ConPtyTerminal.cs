@@ -208,20 +208,11 @@ public class ConPtyTerminal : IDisposable
         }
     }
 
-    /// <summary>
-    /// Build the command line for the shell. For PowerShell we suppress
-    /// PSReadLine because it uses cursor-positioning escape sequences
-    /// (CUP/EL/ED) to redraw the prompt in place on every keystroke, and
-    /// the simple linear-append VtParser used here cannot honor cursor
-    /// positioning — every keystroke would otherwise duplicate the prompt.
-    /// </summary>
     private static string BuildShellCommandLine(string shellPath)
     {
         var name = Path.GetFileName(shellPath).ToLowerInvariant();
         if (name is "pwsh.exe" or "powershell.exe")
-        {
-            return $"\"{shellPath}\" -NoLogo -NoExit -Command \"Remove-Module PSReadLine -ErrorAction SilentlyContinue\"";
-        }
+            return $"\"{shellPath}\" -NoLogo";
         return $"\"{shellPath}\"";
     }
 
