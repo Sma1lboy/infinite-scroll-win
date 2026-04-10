@@ -22,7 +22,7 @@
     <SolidColorBrush x:Key="NotesTextBrush" Color="#D9D9E0"/>
 
     <!-- Terminal colors -->
-    <SolidColorBrush x:Key="TerminalBackgroundBrush" Color="#1A1A1F"/>
+    <SolidColorBrush x:Key="TerminalBackgroundBrush" Color="#000000"/>
     <SolidColorBrush x:Key="TerminalForegroundBrush" Color="#D9D9E0"/>
 
     <!-- Dimensions -->
